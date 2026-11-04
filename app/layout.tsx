@@ -3,8 +3,8 @@ import type { Metadata, Viewport } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'Windows Hub — Precision Window Calculations',
-  description: 'Professional window material calculators, editable profile rates, and printable estimates for fabricators and installers.',
+  title: 'Europrofilo Window Calculator',
+  description: 'A focused Europrofilo material estimator for window fabricators and installers.',
   generator: 'v0.app',
 }
 
