@@ -1,5 +1,5 @@
-import WindowsHub from '@/components/windows-hub'
+import EuroprofiloCalculator from '@/components/europrofilo-calculator'
 
 export default function Page() {
-  return <WindowsHub />
+  return <EuroprofiloCalculator />
 }
