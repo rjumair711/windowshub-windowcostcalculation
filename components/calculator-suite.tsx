@@ -7,11 +7,11 @@ import { ArrowLeft, Download, Upload, FileText, Plus, Trash2 } from 'lucide-reac
 export type Rate = { id: string; name: string; code: string; rate: number; unit: 'running ft'; verified: boolean }
 
 const defaultRates: Rate[] = [
-  { id: 'sliding-frame', name: 'Sliding Frame', code: 'EP-SF', rate: 691, unit: 'running ft', verified: false },
-  { id: 'sliding-sash', name: 'Sliding Sash', code: 'EP-SS', rate: 682, unit: 'running ft', verified: false },
-  { id: 'beading', name: 'Beading', code: 'EP-BEAD', rate: 210, unit: 'running ft', verified: false },
-  { id: 'net-sash', name: 'Net Sash', code: 'EP-NS', rate: 728, unit: 'running ft', verified: false },
-  { id: 'interlock', name: 'Interlock', code: 'EP-IL', rate: 335, unit: 'running ft', verified: false },
+  { id: 'sliding-frame', name: '88mm Sliding Frame Architect', code: 'SP-3001', rate: 691, unit: 'running ft', verified: false },
+  { id: 'sliding-sash', name: '66mm Sliding Sash Architect', code: 'SP-5011', rate: 660, unit: 'running ft', verified: false },
+  { id: 'beading', name: 'Beading for 5–6mm Glass', code: 'SP-5021', rate: 174, unit: 'running ft', verified: false },
+  { id: 'net-sash', name: '52mm Net Sash', code: 'SP-2014', rate: 289, unit: 'running ft', verified: false },
+  { id: 'interlock', name: 'Interlock for 66mm Sash', code: 'SP-5024', rate: 194, unit: 'running ft', verified: false },
 ]
 
 export function useRates() {
@@ -47,14 +47,39 @@ function useCutRules() {
 }
 
 export function WindowMaterialCalculator() {
-  const { rates } = useRates(); const { rules, update } = useCutRules(); const [width, setWidth] = useState('4'); const [height, setHeight] = useState('4'); const [qty, setQty] = useState('1'); const [selected, setSelected] = useState('sliding-frame')
-  const w = Number(width), h = Number(height), q = Number(qty); const valid = [w, h, q].every(Number.isFinite) && w > 0 && h > 0 && q > 0; const rate = rates.find(r => r.id === selected) || rates[0]; const rule = rules[selected]
-  const basisValue = rule?.basis === 'perimeter' ? 2 * (w + h) : rule?.basis === 'width' ? w : rule?.basis === 'height' ? h : rule?.basis === 'manual' ? 1 : 0
-  const quantity = valid && rule ? basisValue * rule.multiplier * q : 0
-  const total = quantity * (rate?.rate || 0)
-  function setBasis(basis: CutRule['basis']) { update(selected, { basis, multiplier: rule?.multiplier || 1, verified: false }) }
-  function setMultiplier(value: string) { update(selected, { basis: rule?.basis || 'perimeter', multiplier: Math.max(0, Number(value) || 0), verified: false }) }
-  return <Shell title="Window Material Calculator" description="Europrofilo estimate with explicit running-foot quantities. No cutting relationship is assumed: configure each profile rule and confirm it with the manufacturer before production."><div className="grid gap-6 lg:grid-cols-[1fr_1fr]"><section className="panel grid gap-4 sm:grid-cols-3"><NumberField label="Width (ft)" value={width} onChange={setWidth} /><NumberField label="Height (ft)" value={height} onChange={setHeight} /><NumberField label="Quantity" value={qty} onChange={setQty} min={1} step="1" /><label className="field sm:col-span-3"><span>Primary profile</span><select value={selected} onChange={e => setSelected(e.target.value)}>{rates.map(r => <option key={r.id} value={r.id}>{r.name} · Rs. {r.rate}/running ft</option>)}</select></label><label className="field"><span>Quantity basis</span><select value={rule?.basis || ''} onChange={e => setBasis(e.target.value as CutRule['basis'])}><option value="">Not configured</option><option value="perimeter">Perimeter</option><option value="width">Width</option><option value="height">Height</option><option value="manual">Manual unit</option></select></label><NumberField label="Rule multiplier" value={String(rule?.multiplier || 1)} onChange={setMultiplier} min={0} /></section><section className="panel"><div className="flex items-start justify-between gap-4"><div><p className="text-xs uppercase tracking-[.15em] text-[#64748b]">Estimate</p><p className="mt-2 text-4xl font-semibold">{quantity.toFixed(2)} <span className="text-base font-normal text-[#64748b]">running ft</span></p></div><p className="text-right text-sm font-semibold text-[#087e8b]">Rs. {valid && rule ? total.toFixed(2) : '—'}</p></div><p className="mt-5 text-xs leading-5 text-[#64748b]">{rule ? 'Configured rule is unverified. Confirm the basis, multiplier, allowances, joins, and cutting optimization with the client.' : 'No rule configured for this profile. Select a basis and multiplier to enable the estimate.'}</p></section></div></Shell>
+  const { rates } = useRates();
+  const { rules, update } = useCutRules();
+  const [width, setWidth] = useState('4');
+  const [height, setHeight] = useState('4');
+  const [qty, setQty] = useState('1');
+  const [selected, setSelected] = useState('sliding-frame');
+  const w = Number(width), h = Number(height), q = Number(qty);
+  const valid = [w, h, q].every(Number.isFinite) && w > 0 && h > 0 && q > 0;
+  const squareFeetPerWindow = valid ? w * h : 0;
+  const totalSquareFeet = squareFeetPerWindow * (valid ? q : 0);
+  const quantityFor = (id: string) => {
+    const rule = rules[id];
+    const basisValue = rule?.basis === 'perimeter' ? 2 * (w + h) : rule?.basis === 'width' ? w : rule?.basis === 'height' ? h : rule?.basis === 'manual' ? 1 : 0;
+    return valid && rule ? basisValue * rule.multiplier * q : 0;
+  };
+  const totalMaterialCost = rates.reduce((sum, rate) => sum + quantityFor(rate.id) * rate.rate, 0);
+  const selectedRule = rules[selected];
+  function setBasis(basis: CutRule['basis']) { update(selected, { basis, multiplier: selectedRule?.multiplier || 1, verified: false }); }
+  function setMultiplier(value: string) { update(selected, { basis: selectedRule?.basis || 'manual', multiplier: Math.max(0, Number(value) || 0), verified: false }); }
+  return <Shell title="Window Material Calculator" description="Europrofilo estimate with explicit running-foot quantities. Configure each profile independently; unverified rules are illustrative only and must be confirmed before fabrication.">
+    <div className="grid gap-6">
+      <section className="panel grid gap-4 sm:grid-cols-3">
+        <NumberField label="Width (ft)" value={width} onChange={setWidth} />
+        <NumberField label="Length / Height (ft)" value={height} onChange={setHeight} />
+        <NumberField label="Window Quantity" value={qty} onChange={setQty} min={1} step="1" />
+        <label className="field sm:col-span-3"><span>Profile rule to configure</span><select value={selected} onChange={e => setSelected(e.target.value)}>{rates.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}</select></label>
+        <label className="field"><span>Quantity basis</span><select value={selectedRule?.basis || ''} onChange={e => setBasis(e.target.value as CutRule['basis'])}><option value="">Not configured</option><option value="perimeter">Perimeter</option><option value="width">Width</option><option value="height">Height</option><option value="manual">Manual unit</option></select></label>
+        <NumberField label="Rule multiplier" value={String(selectedRule?.multiplier ?? 1)} onChange={setMultiplier} min={0} />
+        <div className="rounded bg-[#eef6f5] p-3 text-sm"><span className="text-[#64748b]">Square feet per window</span><strong className="mt-1 block">{valid ? squareFeetPerWindow.toFixed(2) : '—'} sq ft</strong><span className="mt-1 block text-xs text-[#64748b]">Total: {valid ? totalSquareFeet.toFixed(2) : '—'} sq ft</span></div>
+      </section>
+      <section className="panel overflow-x-auto"><div className="mb-4 flex items-start justify-between gap-4"><div><h2 className="font-semibold">Material quantities and cost</h2><p className="mt-1 text-xs text-[#64748b]">Rates are per running foot. Square-foot area is shown separately and never drives profile cost.</p></div><strong className="text-[#087e8b]">Grand total: Rs. {valid ? totalMaterialCost.toFixed(2) : '—'}</strong></div><table className="w-full min-w-[760px] text-left text-sm"><thead><tr className="border-b border-[#e3e9ed] text-xs uppercase tracking-wider text-[#64748b]"><th className="py-3">Material</th><th>Profile code</th><th>Rate / running ft</th><th>Required running ft</th><th>Cost</th><th>Rule status</th></tr></thead><tbody>{rates.map(rate => { const rule = rules[rate.id]; const materialQty = quantityFor(rate.id); return <tr key={rate.id} className="border-b border-[#eef2f4]"><td className="py-4 font-semibold">{rate.name}</td><td className="text-[#64748b]">{rate.code}</td><td>Rs. {rate.rate.toFixed(2)}</td><td>{rule && valid ? materialQty.toFixed(2) : '—'}</td><td>{rule && valid ? `Rs. ${(materialQty * rate.rate).toFixed(2)}` : '—'}</td><td className="text-xs text-[#b06f28]">{rule ? 'Configured; unverified' : 'Not configured'}</td></tr>})}</tbody></table></section>
+    </div>
+  </Shell>
 }
 
 export function MaterialRates() {
